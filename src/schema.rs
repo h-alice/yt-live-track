@@ -4,6 +4,6 @@ diesel::table! {
     tcc_live (id) {
         id -> Integer,
         title -> Text,
-        live_url -> Text,
+        live_id -> Text,
     }
 }
