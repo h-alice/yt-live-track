@@ -1,6 +1,7 @@
 use diesel::prelude::*;
 use crate::schema::tcc_live;
 
+#[derive(Debug)]
 #[derive(Queryable, Selectable)]
 #[diesel(table_name = tcc_live)]
 #[diesel(check_for_backend(diesel::sqlite::Sqlite))]

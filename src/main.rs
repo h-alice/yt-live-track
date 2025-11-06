@@ -1,85 +1,55 @@
-use reqwest;
-use regex::Regex;
+use tcc_live_capture::*;
+use tcc_live_capture::models::*;
+use tcc_live_capture::yt_util::*;
+use diesel::{prelude::*};
+use diesel::r2d2::{ConnectionManager, Pool};
+
+use dotenv::dotenv;
+use std::env;
+
+
 //use std::fmt;
-use std::error::Error;
 
-static YT_URL_PAT : &str = r"https://www\.youtube\.com/watch\?v\\u003d[^\\]*";
-static YT_TITLE_PAT : &str = r"<title>([^<]*)</title>";
 
-/// Fetch video title from given video id.
-/// 
-/// # Examples
-/// 
-/// ```rust
-/// let title = video_title_from_id("u_x7T0mT-K4").await?;
-/// ```
-async fn video_title_from_id(video_id : &str) 
-    -> Result<String, Box<dyn Error>> {
+async fn get_live_id_and_insert(pool : &Pool<ConnectionManager<SqliteConnection>>, handle : &str) 
+  -> Result<Option<LiveEntry>, Box<dyn std::error::Error>> {
 
-    // fetch entire page from YT
-    let resp: String = reqwest::get(
-        format!("https://www.youtube.com/watch?v={}", video_id))
-        .await?
-        .text()
-        .await?;
+  let pool = pool.clone();
+  let live_id = live_id_from_channel_name(handle).await?;
+  let title = video_title_from_id(live_id.as_str()).await?;
 
-    let re = Regex::new(YT_TITLE_PAT)?;
-
-    match re.captures(&resp) {
-        None => return Err("no title information found".into()),
-        Some(cap) => {
-            let title = cap.get(1).unwrap().as_str().to_string();
-            return Ok(title);
-        }
-    };
-}
-
-/// Fetch `single` live URL from given channel ID.
-/// 
-/// # Examples
-/// 
-/// ```rust
-/// let live_url = live_url_from_channel("UCwiE5sxWHSXD5qEBuAhyzkg").await?
-/// ```
-async fn live_url_from_channel(channel_id : &str) 
-    -> Result<String, Box<dyn Error>> {
-
-    let resp: String = reqwest::get(
-        format!("https://www.youtube.com/embed/live_stream?channel={}", channel_id))
-        .await?
-        .text()
-        .await?;
-
-    let re = Regex::new(YT_URL_PAT).unwrap();
-
-    match re.find(&resp) {
-        None => return Err("no live URL found".into()),
-        Some(m) => {
-            let converted_live_url = m.as_str().to_string().replace(r"\u003d", "=");
-            return Ok(converted_live_url)}
-    };
+  let res = tokio::task::spawn_blocking(move || {
+    let mut conn = pool.get().map_err(|err| format!("cannot get connection: {err}"))?;
+    let result = insert_live_info(&mut conn, &title, &live_id);
+    match result {
+      Ok(inserted) => { Ok(inserted) }
+      Err(e) => { Err(e.to_string()) }
+    }
+  }).await?.map_err(|err_str| err_str)?;
+  
+  return Ok(res);
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
-    
-    
-    let result = live_url_from_channel("UCwiE5sxWHSXD5qEBuAhyzkg").await;
-    
-    match result{
-        Ok(x) => {
-            println!("{}", x);
-        }
-        Err(_e) => {
-            println!("We cannot find live URL from given channel.")
-        }
-    }
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-    let result2 = video_title_from_id("u_x7T0mT-K4").await?;
-    println!("{}", result2);
+  dotenv().ok();
+  let tracking_channels_env = env::var("CHANNELS").map_err(|err| format!("env error: {err}"))?;
 
-   //println!("Hello, world!");
-   //println!("{:?}", resp);
+  let tracking_channels = tracking_channels_env.split(";").filter(|x| !x.is_empty()).collect::<Vec<&str>>();
 
-    return Ok(());
+  if tracking_channels.is_empty() {
+    return Err("no channels to track".into());
+  }
+
+  let pool = mk_connection_pool()?;
+
+  let res = get_live_id_and_insert(&pool, tracking_channels[0]).await?;
+
+  match res {
+    Some(row) => println!("successfull insert: \n{:?}", row),
+    None => println!("Live database remain unchanged, record may have already existed"),
+  }
+
+  return Ok(());
 }
