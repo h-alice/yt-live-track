@@ -1,0 +1,10 @@
+[package]
+name = "tcc-live-list"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dotenv = "0.15"
+tokio = { version = "1", features = ["full"] }
+diesel = { version = "2", features = ["sqlite"] }
+tcc_live_lib = { path = "../tcc_live_lib" }

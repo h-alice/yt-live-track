@@ -1258,7 +1258,30 @@ dependencies = [
 ]
 
 [[package]]
-name = "tcc-live-capture"
+name = "tcc-live-list"
+version = "0.1.0"
+dependencies = [
+ "diesel",
+ "dotenv",
+ "tcc_live_lib",
+ "tokio",
+]
+
+[[package]]
+name = "tcc-live-status"
+version = "0.1.0"
+dependencies = [
+ "diesel",
+ "dotenv",
+ "regex",
+ "reqwest",
+ "serde_json",
+ "tcc_live_lib",
+ "tokio",
+]
+
+[[package]]
+name = "tcc_live_lib"
 version = "0.1.0"
 dependencies = [
  "diesel",

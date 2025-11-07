@@ -1,6 +1,6 @@
-use tcc_live_capture::*;
-use tcc_live_capture::models::*;
-use tcc_live_capture::yt_util::*;
+use tcc_live_lib::*;
+use tcc_live_lib::models::*;
+use tcc_live_status::yt_utils::*;
 use diesel::{prelude::*};
 use diesel::r2d2::{ConnectionManager, Pool};
 
@@ -21,7 +21,7 @@ async fn get_live_id_and_insert(pool : Pool<ConnectionManager<SqliteConnection>>
   let live_id: String = 
     live_id_from_channel_name(handle.as_str())
       .await
-      .map_err(|err| err.to_string())?; // Stringify error
+      .map_err(|_err| format!("<{handle}> is not in live state."))?; // Stringify error
 
   let title: String = 
     video_title_from_id(live_id.as_str())
@@ -44,8 +44,8 @@ async fn get_live_id_and_insert(pool : Pool<ConnectionManager<SqliteConnection>>
     }
     
   }).await
-    .map_err(|err| err.to_string())
-    .map_err(|err_str| err_str)??;
+    .unwrap()
+    .map_err(|err_str| format!("<{handle}> encounted an error: {err_str}"))?;
   
   return Ok(res);
 }
@@ -114,7 +114,27 @@ async fn daemon(cancel_tx : tokio::sync::broadcast::Sender<()>)
         // await task results
         let result = task_set.join_all().await;
 
-        println!("result: {:?}", result); // debug print
+        result.iter().for_each(|r| {
+          match r {
+
+            Ok(res) => {
+              match res {
+
+                Some(new_record) => {
+                  println!("[Live Status] inserted new record: {new_record:?}");
+                },
+
+                None => {}, // Do nothing
+              }
+            },
+
+            Err(e) => {
+              println!("[Live Status] {:?}", e);
+            },
+          }
+        });
+
+        //println!("result: {:?}", result); // debug print
         
       }
 

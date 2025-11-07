@@ -1,6 +1,7 @@
 pub mod models;
 pub mod schema;
-pub mod yt_util;
+pub mod yt_ytils;
+//pub mod yt_util;
 
 // for database
 
@@ -15,6 +16,7 @@ use std::env;
 
 use self::models::{LiveEntry, NewLiveEntry};
 
+use crate::models::LiveInfo;
 use crate::schema::tcc_live;
 
 pub fn mk_connection_pool() 
@@ -59,3 +61,12 @@ pub fn insert_live_info(conn: &mut SqliteConnection, title: &str, live_id: &str)
       .map_err(|e| format!("inserting failed due to: {e}").into())
 }
 
+pub fn retrieve_all_info(conn: &mut SqliteConnection) 
+  -> Result<Vec<LiveInfo>, Box<dyn std::error::Error>> {
+  
+  use crate::schema::tcc_live::dsl::*;
+
+  tcc_live.select(LiveInfo::as_select())
+    .load(conn)
+    .map_err(|e| format!("retrieving failed due to: {e}").into())
+}
