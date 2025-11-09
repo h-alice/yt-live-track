@@ -86,10 +86,16 @@ pub async fn live_id_from_channel_name(handle : &str)
 
   // 1. fetch the full page (there's init data inside)
   use serde_json::Value;
+  use std::error::Error;
 
   let resp: String = reqwest::get(
     format!("https://www.youtube.com/@{}", handle))
-    .await?
+    .await.map_err(|err| format!(
+      "connection failed due to: {} {:?}", 
+      err.to_string(),  // convert error to string.
+      err.source()      // detailed error message
+        .map(|e| e.to_string()) // with detailed error.
+        .unwrap_or("".to_owned())))?  // didn't provide information, return ""
     .text()
     .await?;
 
