@@ -2,6 +2,7 @@ services:
   retrieve-service:
     build:
       context: .
+    image: h-alice/tcc-live-tracker  # Image name for the built service
     container_name: live-tracker
     env_file:
       - .env # Load environment variables from the .env file
