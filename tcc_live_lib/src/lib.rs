@@ -6,7 +6,7 @@ pub mod yt_ytils;
 // for database
 
 use diesel::{prelude::*};
-
+use diesel_migrations::{embed_migrations, EmbeddedMigrations, MigrationHarness};
 use diesel::r2d2::{ConnectionManager, Pool};
 
 
@@ -18,6 +18,17 @@ use self::models::{LiveEntry, NewLiveEntry};
 
 use crate::models::LiveInfo;
 use crate::schema::tcc_live;
+
+pub const MIGRATIONS: EmbeddedMigrations = embed_migrations!("../migrations");
+
+
+/// Run database migration.
+pub fn run_migrations(conn: &mut SqliteConnection) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+
+    // Run migrations.
+    conn.run_pending_migrations(MIGRATIONS)?;
+    Ok(())
+}
 
 pub fn mk_connection_pool() 
   -> Result<Pool<ConnectionManager<SqliteConnection>>, Box<dyn std::error::Error>> {

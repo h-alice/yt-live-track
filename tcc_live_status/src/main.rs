@@ -21,7 +21,7 @@ async fn get_live_id_and_insert(pool : Pool<ConnectionManager<SqliteConnection>>
   let live_id: String = 
     live_id_from_channel_name(handle.as_str())
       .await
-      .map_err(|_err| format!("<{handle}> is not in live state."))?; // Stringify error
+      .map_err(|_err| format!("<{handle}> {}", _err.to_string()))?; // Stringify error
 
   let title: String = 
     video_title_from_id(live_id.as_str())
@@ -66,6 +66,12 @@ async fn daemon(cancel_tx : tokio::sync::broadcast::Sender<()>)
 
   let pool = mk_connection_pool()
     .map_err(|err| err.to_string())?;
+
+  let mut conn = pool.get()
+    .map_err(|e| format!("cannot create initial connection: {e}"))?;
+
+  let _ = run_migrations(&mut conn)
+    .map_err(|e| format!("cannot run migrations: {e}"))?;
 
   // init: get channels to track
   let tracking_channels_env = 
@@ -191,7 +197,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
   let hdle_daemon = 
     tokio::spawn(daemon(cancel_tx.clone()));
 
-  let _ = tokio::join!(hdle_watcher, hdle_daemon);
+  let _daemon_result = 
+    hdle_daemon.await.unwrap().map_err(|e| format!("[Init] daemon terminated with error: {e}"))?; 
+
+  // if we reach this statement, that means daemon terminated,
+  // and there's no more needs for the signal watcher.
+
+  // If the daemon terminated due to an error, then the previous `?`,
+  // would have passed it to outer runtime, so we won't reach here.
+
+  // If the daemon ended normally due to os signal, then the watcher
+  // thread is ended now, so there's no concern to call `await`
+  // instead of `abort`.
+
+  let _ = hdle_watcher.await?;
 
   return Ok(()); // bye bye
 }
