@@ -1,0 +1,16 @@
+services:
+  retrieve-service:
+    build:
+      context: .
+    container_name: live-tracker
+    env_file:
+      - .env # Load environment variables from the .env file
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+      
